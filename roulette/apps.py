@@ -33,7 +33,7 @@ class RouletteConfig(AppConfig):
                             async with game_lock:  
                                 print("WebSocket connected. Starting game...")
                                 RouletteConsumer.game_running = True  
-                                await RouletteConsumer().start_new_game()  
+                                await RouletteConsumer().start_game()  
                                 RouletteConsumer.game_running = False
                         else:
                             print("Roulette Game already running. Waiting for the next round...")

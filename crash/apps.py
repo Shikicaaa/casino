@@ -34,12 +34,14 @@ class CrashConfig(AppConfig):
                             async with game_lock:  # Sprečava istovremeno pokretanje više igara
                                 print("WebSocket connected. Starting game...")
                                 CrashGameConsumer.game_running = True  # Obeležimo da igra počinje
-                                await CrashGameConsumer().start_new_game()  # Pokreni igru
+                                await CrashGameConsumer.start_new_game()  # Pokreni igru
                                 CrashGameConsumer.game_running = False  # Kada završi, postavi na False
                         else:
-                            print("Crash Game already running. Waiting for the next round...")
+                            pass
+                            #print("Crash Game already running. Waiting for the next round...")
                     else:
-                        print("WebSocket not connected yet. Retrying in 2 seconds...")
+                        pass
+                        # print("WebSocket not connected yet. Retrying in 2 seconds...")
                     await asyncio.sleep(2)  # Sprečava prebrzu proveru
                 except Exception as e:
                     print(e)

@@ -121,7 +121,7 @@ class RouletteConsumer(AsyncWebsocketConsumer):
             if action == "join":
                 user_id = data.get("user_id")
                 bet_amount = data.get("bet_amount")
-                type = data.get("type")
+                type = data.get("type").lower()
                 user = await self.get_user(user_id)
                 if bet_amount < 0.1:
                     await self.send(json.dumps({
@@ -150,8 +150,9 @@ class RouletteConsumer(AsyncWebsocketConsumer):
         if game.game_running:
             waiting_queue.append(
                 {
-                    "user_id" : user_id,
-                    "bet_amount" : bet_amount
+                    "user_id": user_id,
+                    "bet_amount": bet_amount,
+                    "type": type 
                 }
             )
             print(f"User {user_id} added to waiting queue")
@@ -173,26 +174,29 @@ class RouletteConsumer(AsyncWebsocketConsumer):
     @classmethod
     async def take_money(cls, user_id):
         from users.models import User
-        user = User.objects.get(id=user_id)
+        from asgiref.sync import sync_to_async
+
+        user = await sync_to_async(User.objects.get)(id=user_id)
+        
         bet_amount = cls.active_users.get(user_id, {}).get("bet_amount", 0)
 
         if bet_amount > 0:
             user.balance -= bet_amount
-            user.save()
+            await sync_to_async(user.save)() 
             print(f"Oduzet novac: {bet_amount}. Novi balans: {user.balance}")
-            
+         
     @classmethod
-    @database_sync_to_async
-    def give_money(cls, user_id, amount):
+    async def give_money(cls, user_id, amount):
         from users.models import User
-        user = User.objects.get(id=user_id)
+        from asgiref.sync import sync_to_async
+        user = await sync_to_async(User.objects.get)(id=user_id)
         print(amount)
         user.balance += amount
-        user.save()
+        await sync_to_async(user.save)()
         print(f"Novi balans: {user.balance}")
 
     @classmethod
-    def calculate_outcome(server_seed, client_seed, nonce):
+    def calculate_outcome(cls, server_seed, client_seed, nonce):
         hash_input = f"{server_seed}-{client_seed}-{nonce}".encode()
         hashed = hashlib.sha256(hash_input).hexdigest()
         number = int(hashed[:8], 16)
@@ -217,24 +221,45 @@ class RouletteConsumer(AsyncWebsocketConsumer):
             hashed_server_seed = hashlib.sha256(hashed_input).hexdigest()
             nonce = rnd.uniform(0,1)
             number = cls.calculate_outcome(server_seed,client_seed,nonce)
+            if number == 0:
+                print("Green")
+                outcome = "green"
+                multiplier = 14
+            elif number == 36:
+                print("Bait")
+                outcome = "bait black"
+                multiplier = 7
+            elif number == 1:
+                print("Bait")
+                outcome = "bait red"
+                multiplier = 7
+            elif number % 2 == 1:
+                print("Red")
+                outcome = "red"
+                multiplier = 2
+            elif number % 2 == 0:
+                print("Black")
+                outcome = "black"
+                multiplier = 2
 
             new_game = await sync_to_async(RouletteGame.objects.create)(
                 server_seed=server_seed,
                 client_seed=client_seed,
                 hashed_server_seed=hashed_server_seed,
                 nonce=nonce,
-                game_running=True,
-                game_result=outcome
+                game_running=False,
+                outcome=outcome,
+                number=number
             )
             print(new_game)
             cls.current_game = new_game
             
             for player in waiting_queue:
                 print(f"Added user from queue {player}")
-                await cls.add_user_to_game(user_id=player["user_id"], bet_amount=player["bet_amount"])
+                await cls.add_user_to_game(user_id=player["user_id"], bet_amount=player["bet_amount"], type=player["type"])
             
             waiting_queue = []
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             print(f"Game starting... {cls.current_game.id}")
 
             new_game.game_running = True
@@ -244,33 +269,19 @@ class RouletteConsumer(AsyncWebsocketConsumer):
             new_game.hashed_server_seed = hashed_server_seed
             new_game.nonce = nonce
             new_game.number = number
+            new_game.outcome = outcome
+
 
             await cls.save_game(new_game)
 
-            await cls.send_to_group({"hash_server_seed" : cls.hash_server_seed, "status" : "game_start"})
-            asyncio.sleep(5)
-            if outcome == 0:
-                print("Green")
-                outcome = "Green"
-                multiplier = 14
-            elif outcome == 36 or outcome == 1:
-                print("Bait")
-                outcome = "Bait"
-                multiplier = 7
-            elif outcome % 2 == 1:
-                print("Red")
-                outcome = "Red"
-                multiplier = 2
-            elif outcome % 2 == 0:
-                print("Black")
-                outcome = "Black"
-                multiplier = 2
+            await cls.send_to_group({"hash_server_seed" : new_game.hash_server_seed, "status" : "game_start"})
+            await asyncio.sleep(5)
 
-            await cls.send_to_group({"status" : "game_end", "outcome" : outcome})
+            await cls.send_to_group({"status" : "game_end", "outcome" : outcome, "number" : number})
             
             for player in cls.active_users:
-                  if cls.active_users[player]["type"] == outcome:
-                      await cls.give_money(player, cls.active_users[player]["bet_amount"] * multiplier)
+                if cls.active_users[player]["type"] in outcome:
+                    await cls.give_money(player, cls.active_users[player]["bet_amount"] * multiplier)
             cls.game_running = False
             for x in range(10):
                 await asyncio.sleep(1)
@@ -293,11 +304,11 @@ class RouletteConsumer(AsyncWebsocketConsumer):
         )
 
     @classmethod
-    async def save_game(cls, game = None):
+    async def save_game(cls, game=None):
         if game is None:
             game = cls.current_game
         from asgiref.sync import sync_to_async
-        await sync_to_async(cls.current_game.save)()
+        await sync_to_async(game.save)()
 
     async def send_message(self, event):
         await self.send(event["message"])

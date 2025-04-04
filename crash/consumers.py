@@ -310,7 +310,7 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
     async def start_new_game(cls):
         try:
             cls.multiplier = 1.0
-            cls.game_running = False
+            cls.game_running = True
             global waiting_queue
 
             if not (is_connected := cache.get("crash_websocket_connected", False)) or cls.game_running:
