@@ -43,7 +43,7 @@ class CrashGame(models.Model):
     crash_point = models.FloatField(default=1.0)
     game_running = models.BooleanField(default=False)
 
-    users = models.ManyToManyField("users.User", related_name="games")
+    users = models.ManyToManyField("users.User", related_name="crash_games")
 
     def __str__(self):
         return f"Game {self.id} - {'Running' if self.game_running else 'Finished'}" 

@@ -31,7 +31,7 @@ class RouletteGame(models.Model):
     number = models.IntegerField()
     outcome = models.CharField(max_length=64, default="red")
 
-    users = models.ManyToManyField("users.User",related_name="games")
+    users = models.ManyToManyField("users.User",related_name="roulette_games")
 
     def __str__(self):
         return f"Game {self.id} - {'Running' if self.game_running else 'Finished'}"

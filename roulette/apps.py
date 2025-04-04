@@ -19,14 +19,14 @@ class RouletteConfig(AppConfig):
     def run_async_task(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        print("Waiting for WebSocket connection...")
+        print("Roulette Waiting for WebSocket connection...")
 
         game_lock = asyncio.Lock()
 
         async def game_loop():
             while True:
                 try:
-                    is_connected = cache.get("websocket_connected", False)
+                    is_connected = cache.get("roulette_websocket_connected", False)
                     print(is_connected)
                     if is_connected:
                         if not RouletteConsumer.game_running:  
@@ -36,7 +36,7 @@ class RouletteConfig(AppConfig):
                                 await RouletteConsumer().start_new_game()  
                                 RouletteConsumer.game_running = False
                         else:
-                            print("Game already running. Waiting for the next round...")
+                            print("Roulette Game already running. Waiting for the next round...")
                     else:
                         print("WebSocket not connected yet. Retrying in 2 seconds...")
                     await asyncio.sleep(1)

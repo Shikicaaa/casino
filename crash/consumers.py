@@ -54,7 +54,7 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
 
         await self.send(json.dumps({"status": "connected"}))
         print("WebSocket connected message sent.")  # Debug
-        cache.set("websocket_connected", True)
+        cache.set("crash_websocket_connected", True)
         asyncio.create_task(self.keep_alive())  # Debug
 
         if self.game_running:
@@ -62,7 +62,7 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
             print("Game start message sent.")  # Debug
 
     async def disconnect(self, close_code):
-        cache.set("websocket_connected", False)
+        cache.set("crash_websocket_connected", False)
         await self.channel_layer.group_discard("crash_game", self.channel_name)
         print(f"WebSocket disconnected (code {close_code})")
 
@@ -124,10 +124,10 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
     async def keep_alive(self):
         while True:
             try:
-                if not cache.get("websocket_connected", False):
+                if not cache.get("crash_websocket_connected", False):
                     print("WebSocket not connected, stopping keep alive.")
                     break
-                cache.set("websocket_connected", True, timeout=40)
+                cache.set("crash_websocket_connected", True, timeout=40)
                 await asyncio.sleep(20)
 
             except Exception as e:
@@ -313,7 +313,7 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
             cls.game_running = False
             global waiting_queue
 
-            if not (is_connected := cache.get("websocket_connected", False)) or cls.game_running:
+            if not (is_connected := cache.get("crash_websocket_connected", False)) or cls.game_running:
                 return
 
             print("Creating game in DB")

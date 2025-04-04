@@ -10,7 +10,6 @@ import jwt
 from django.conf import settings
 from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
-from users.models import get_user_from_token
 
 waiting_queue = []
 
@@ -29,8 +28,8 @@ class RouletteConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_game(self, game_id = None):
-        from .models import CrashGame
-        return CrashGame.objects.get(id=game_id) if game_id else CrashGame.objects.order_by("-id").first()
+        from .models import RouletteGame
+        return RouletteGame.objects.get(id=game_id) if game_id else RouletteGame.objects.order_by("-id").first()
 
     @database_sync_to_async
     def get_user(self, user_id):
@@ -98,19 +97,19 @@ class RouletteConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        await self.channel_layer.group_add("roulette", self.channel_name)
+        await self.channel_layer.group_add("roulette_game", self.channel_name)
         print("User added to roulette group")
 
         await self.send(json.dumps({"status": "connected"}))
-        cache.set("websocket_connected", True)
+        cache.set("roulette_websocket_connected", True)
 
         if self.game_running:
             await self.send(json.dumps({"hashed_server_seed": f"{self.hash_server_seed}"}))
     
     async def disconnect(self, code):
-        cache.set("websocket_connected", False)
-        await self.channel_layer.group_discard("roulette", self.channel_name)
-        print(f"User disconnected from roulette group (code {code})")
+        cache.set("roulette_websocket_connected", False)
+        await self.channel_layer.group_discard("roulette_game", self.channel_name)
+        print(f"User disconnected from roulette_game group (code {code})")
     
     async def receive(self, text_data):
         if self.user.is_authenticated:
@@ -205,7 +204,7 @@ class RouletteConsumer(AsyncWebsocketConsumer):
             cls.game_running = False
             global waiting_queue
 
-            if not (is_connected := cache.get("websocket_connected")) or cls.game_running:
+            if not (is_connected := cache.get("roulette_websocket_connected")) or cls.game_running:
                 return
             
             print("Creating game in DB")
@@ -289,7 +288,7 @@ class RouletteConsumer(AsyncWebsocketConsumer):
     async def send_to_group(cls, message):
         cls.channel_layer = get_channel_layer()
         await cls.channel_layer.group_send(
-            "crash_game",
+            "roulette_game",
             {"type": "send_message", "message": json.dumps(message)}
         )
 

@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "crash",
     "users",
-    "channels"
+    "channels",
+    "roulette"
 ]
 
 REST_FRAMEWORK = {

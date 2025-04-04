@@ -20,14 +20,14 @@ class CrashConfig(AppConfig):
     def run_async_task(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        print("Waiting for WebSocket connection...")
+        print("Crash Waiting for WebSocket connection...")
 
         game_lock = asyncio.Lock()  # Sprečava pokretanje više igara odjednom
 
         async def game_loop():
             while True:
                 try:
-                    is_connected = cache.get("websocket_connected", False)
+                    is_connected = cache.get("crash_websocket_connected", False)
                     print(is_connected)
                     if is_connected:
                         if not CrashGameConsumer.game_running:  # Provera da li igra već traje
@@ -37,7 +37,7 @@ class CrashConfig(AppConfig):
                                 await CrashGameConsumer().start_new_game()  # Pokreni igru
                                 CrashGameConsumer.game_running = False  # Kada završi, postavi na False
                         else:
-                            print("Game already running. Waiting for the next round...")
+                            print("Crash Game already running. Waiting for the next round...")
                     else:
                         print("WebSocket not connected yet. Retrying in 2 seconds...")
                     await asyncio.sleep(2)  # Sprečava prebrzu proveru
