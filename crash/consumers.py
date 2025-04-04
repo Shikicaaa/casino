@@ -324,8 +324,8 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
             client_seed = "default_client_seed"
             hashed_input = f"{cls.server_seed}-{cls.client_seed}-{cls.nonce}".encode()
             hashed_server_seed = hashlib.sha256(hashed_input).hexdigest()
-            crash_point = cls.calculate_crash_point(server_seed, client_seed, cls.nonce)
             nonce = rnd.uniform(0,1)
+            crash_point = cls.calculate_crash_point(server_seed, client_seed, nonce)
 
             new_game = await sync_to_async(CrashGame.objects.create)(
                 server_seed=server_seed,
@@ -427,27 +427,6 @@ class CrashGameConsumer(AsyncWebsocketConsumer):
         from asgiref.sync import sync_to_async
         await sync_to_async(cls.current_game.save)()
 
-    @classmethod
-    async def update_db(cls):
-        from asgiref.sync import sync_to_async
-        from .models import CrashGame
-        game = await sync_to_async(CrashGame.objects.order_by("-id").first)()
-        if game:
-            game.game_running = False
-            await sync_to_async(game.save)()
-
-    @classmethod
-    async def save_to_db(cls):
-        from asgiref.sync import sync_to_async
-        from .models import CrashGame
-        await sync_to_async(CrashGame.objects.create)(
-            server_seed=cls.server_seed,
-            client_seed=cls.client_seed,
-            hashed_server_seed=cls.hash_server_seed,
-            nonce=cls.nonce,
-            crash_point=cls.crash_point,
-            game_running=cls.game_running
-        )
 
     async def send_message(self, event):
         await self.send(event["message"])
